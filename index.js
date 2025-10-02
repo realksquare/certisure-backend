@@ -6,19 +6,25 @@ const { connectToDB, getDB } = require('./db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS Configuration - REPLACE with your actual frontend URL!
+// CORS Configuration
 const corsOptions = {
     origin: [
-        'https://certisure-frontend.vercel.app',  // YOUR ACTUAL FRONTEND URL HERE
+        'https://certisure-frontend-7ibzfhgoi-krishna-s-projects-ee812af8.vercel.app',  // Your actual frontend URL
+        'https://certisure-frontend.vercel.app',
         'http://localhost:5173',
         'http://localhost:3000'
     ],
     credentials: true,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
 
 // Helper function to create a stable, deterministic hash
 function createStableHash(data) {
