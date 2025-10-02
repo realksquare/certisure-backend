@@ -1,34 +1,38 @@
-require('dotenv').config(); 
-
+require('dotenv').config();
 const { MongoClient } = require('mongodb');
 
-const uri = process.env.MONGO_URI; 
-
-if (!uri) {
-    console.error("🔥 Error: MONGO_URI is not defined. Make sure you have a .env file with the connection string.");
-    process.exit(1);
-}
-
-const client = new MongoClient(uri);
-
 let db;
+let client;
 
 const connectToDB = async () => {
-    if (db) return db;
-    try {
-        await client.connect();
-        db = client.db("CertiSure");
-        console.log("Connected successfully to MongoDB!");
+    // If already connected and the connection is alive, return
+    if (db && client && client.topology && client.topology.isConnected()) {
         return db;
+    }
+
+    try {
+        const uri = process.env.MONGO_URI;
+        
+        if (!uri) {
+            console.error('🔥 Error: MONGO_URI is not defined. Make sure you have a .env file with the connection string.');
+            process.exit(1);
+        }
+
+        client = new MongoClient(uri);
+        await client.connect();
+        db = client.db("certisure");
+        console.log('Connected successfully to MongoDB!');
+        return db;
+        
     } catch (err) {
-        console.error("Failed to connect to MongoDB", err);
+        console.error('Failed to connect to MongoDB', err);
         process.exit(1);
     }
 };
 
 const getDB = () => {
     if (!db) {
-        throw new Error("Database not connected!");
+        throw new Error('Database not connected!');
     }
     return db;
 };
