@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 // CORS Configuration
 const corsOptions = {
     origin: [
-        'https://certisure-frontend-7ibzfhgoi-krishna-s-projects-ee812af8.vercel.app',  // Your actual frontend URL
+        'https://certisure-frontend-7ibzfhgoi-krishna-s-projects-ee812af8.vercel.app',
         'https://certisure-frontend.vercel.app',
         'http://localhost:5173',
         'http://localhost:3000'
@@ -25,6 +25,17 @@ app.use(express.json());
 
 // Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
+
+// Database connection middleware - ADDED HERE
+app.use(async (req, res, next) => {
+    try {
+        await connectToDB();
+        next();
+    } catch (error) {
+        console.error('Database connection error:', error);
+        res.status(500).json({ message: 'Database connection failed' });
+    }
+});
 
 // Helper function to create a stable, deterministic hash
 function createStableHash(data) {
