@@ -1,7 +1,13 @@
 {
   "functions": {
-    "api/index.js": {
-      "includeFiles": "node_modules/canvas/build/Release/librsvg-2.so.2"
+    "index.js": {
+      "runtime": "nodejs18.x"
     }
-  }
+  },
+  "build": {
+    "env": {
+      "canvas_version": "2.9.1"
+    }
+  },
+  "installCommand": "apt-get update && apt-get install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev && npm install"
 }
