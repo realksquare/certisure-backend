@@ -13,7 +13,17 @@ const PORT = process.env.PORT || 3000;
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-app.use(cors());
+const corsOptions = {
+    origin: [
+        'https://certisure-frontend.vercel.app',
+        'http://localhost:5173',
+        'http://localhost:3000'
+    ],
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Helper function to create a stable, deterministic hash
@@ -33,9 +43,6 @@ function createStableHash(data) {
 // Function to extract QR code from PDF
 async function getQrDataFromPdf(buffer) {
     const data = await pdfParse(buffer);
-    
-    // PDF parsing gives us text, but for QR codes we need to render the page
-    // For now, we'll throw an error and use a simpler approach
     throw new Error('PDF QR scanning on backend needs canvas rendering - using direct upload instead');
 }
 
