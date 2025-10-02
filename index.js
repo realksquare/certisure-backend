@@ -1,21 +1,15 @@
 const express = require('express');
 const crypto = require('crypto');
 const cors = require('cors');
-const multer = require('multer');
-const pdfParse = require('pdf-parse');
-const jsQR = require('jsqr');
-const { createCanvas, loadImage } = require('canvas');
 const { connectToDB, getDB } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
-
+// CORS Configuration - REPLACE with your actual frontend URL!
 const corsOptions = {
     origin: [
-        'https://certisure-frontend.vercel.app',
+        'https://certisure-frontend.vercel.app',  // YOUR ACTUAL FRONTEND URL HERE
         'http://localhost:5173',
         'http://localhost:3000'
     ],
@@ -40,23 +34,23 @@ function createStableHash(data) {
     return crypto.createHash('sha256').update(stringToHash).digest('hex');
 }
 
-// Function to extract QR code from PDF
-async function getQrDataFromPdf(buffer) {
-    const data = await pdfParse(buffer);
-    throw new Error('PDF QR scanning on backend needs canvas rendering - using direct upload instead');
-}
+// Simple test endpoint
+app.get('/', (req, res) => {
+    res.json({ message: 'CertiSure Backend is running!' });
+});
 
-// --- API Endpoints ---
-
-app.post('/api/upload-for-creation', upload.single('pdf'), async (req, res) => {
+// API endpoint for creating certificate records
+app.post('/api/create-record', async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ message: 'No PDF file uploaded.' });
+        const { certificateData } = req.body;
+        
+        if (!certificateData) {
+            return res.status(400).json({ message: 'Certificate data is required.' });
+        }
 
-        const rawQrData = await getQrDataFromPdf(req.file.buffer);
-        const certificateData = JSON.parse(rawQrData);
         const dataHash = createStableHash(certificateData);
-
         const db = getDB();
+        
         const existing = await db.collection('certificates').findOne({ dataHash: dataHash });
 
         if (existing) {
@@ -67,17 +61,19 @@ app.post('/api/upload-for-creation', upload.single('pdf'), async (req, res) => {
         res.status(201).json({ message: 'Certificate record created successfully.' });
 
     } catch (error) {
+        console.error('Error in /api/create-record:', error);
         res.status(500).json({ message: error.message });
     }
 });
 
-app.post('/api/upload-for-verification', upload.single('pdf'), async (req, res) => {
+// API endpoint for verifying certificate records
+app.post('/api/verify-record', async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ message: 'No PDF file uploaded.' });
-
-        const rawQrData = await getQrDataFromPdf(req.file.buffer);
-        const certificateData = JSON.parse(rawQrData);
-        const dataHash = createStableHash(certificateData);
+        const { dataHash } = req.body;
+        
+        if (!dataHash) {
+            return res.status(400).json({ message: 'Data hash is required.' });
+        }
 
         const db = getDB();
         const foundCertificate = await db.collection('certificates').findOne({ dataHash: dataHash });
@@ -89,12 +85,19 @@ app.post('/api/upload-for-verification', upload.single('pdf'), async (req, res) 
             res.status(404).json({ verified: false, message: 'Verification Failed: Certificate not found.' });
         }
     } catch (error) {
+        console.error('Error in /api/verify-record:', error);
         res.status(500).json({ message: error.message });
     }
 });
 
-connectToDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+// Export for Vercel Serverless
+module.exports = app;
+
+// Only listen if not in serverless environment
+if (require.main === module) {
+    connectToDB().then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server is running on port ${PORT}`);
+        });
     });
-});
+}
