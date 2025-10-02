@@ -1,10 +1,8 @@
 const express = require('express');
 const crypto = require('crypto');
-const cors = require('cors');
+const cors =require('cors');
 const multer = require('multer');
-const { getDocument } = require('pdfjs-dist/legacy/build/pdf.js');
-const { createCanvas } = require('canvas');
-const jsQR = require('jsqr');
+const pdf_qr_scanner = require('pdf-qr-scanner');
 const { connectToDB, getDB } = require('./db');
 
 const app = express();
@@ -19,9 +17,7 @@ app.use(express.json());
 // Helper function to create a stable, deterministic hash
 function createStableHash(data) {
     const sortObject = (obj) => {
-        if (typeof obj !== 'object' || obj === null) {
-            return obj;
-        }
+        if (typeof obj !== 'object' || obj === null) return obj;
         return Object.keys(obj).sort().reduce((acc, key) => {
             acc[key] = sortObject(obj[key]);
             return acc;
@@ -32,27 +28,17 @@ function createStableHash(data) {
     return crypto.createHash('sha256').update(stringToHash).digest('hex');
 }
 
+// Drastically simplified function using the new library
 async function getQrDataFromPdf(buffer) {
-    const data = new Uint8Array(buffer);
-    const pdf = await getDocument(data).promise;
-    const page = await pdf.getPage(1);
-
-    const viewport = page.getViewport({ scale: 1.5 });
-    const canvas = createCanvas(viewport.width, viewport.height);
-    const context = canvas.getContext('2d');
-
-    await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-    if (code) {
-        return code.data;
+    const scanner = new pdf_qr_scanner(buffer);
+    const result = await scanner.scan();
+    if (result && result.data) {
+        return result.data;
     }
-    throw new Error('Could not find a QR code in the first page of the PDF.');
+    throw new Error('Could not find a QR code in the PDF.');
 }
 
-//API Endpoints
+// --- API Endpoints ---
 
 app.post('/api/upload-for-creation', upload.single('pdf'), async (req, res) => {
     try {
