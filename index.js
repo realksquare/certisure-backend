@@ -6,14 +6,29 @@ const { connectToDB, getDB } = require('./db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS Configuration
+// --- THE ULTIMATE CORS CONFIGURATION ---
+const allowedOrigins = [
+    'https://certisure-frontend.vercel.app', // Your main production URL
+    /https:\/\/certisure-frontend-.*\.vercel\.app$/, // Regex for all Vercel preview URLs
+    /http:\/\/localhost:\d+$/ // Regex for all localhost ports
+];
+
 const corsOptions = {
-    origin: [
-        'https://certisure-frontend-7ibzfhgoi-krishna-s-projects-ee812af8.vercel.app',
-        'https://certisure-frontend.vercel.app',
-        'http://localhost:5173',
-        'http://localhost:3000'
-    ],
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.some(pattern => {
+            if (pattern instanceof RegExp) {
+                return pattern.test(origin);
+            }
+            return pattern === origin;
+        })) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -22,11 +37,10 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+// --- END OF CORS CONFIGURATION ---
 
-// Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
 
-// Database connection middleware - ADDED HERE
+// Database connection middleware
 app.use(async (req, res, next) => {
     try {
         await connectToDB();
@@ -60,23 +74,17 @@ app.get('/', (req, res) => {
 app.post('/api/create-record', async (req, res) => {
     try {
         const { certificateData } = req.body;
-        
         if (!certificateData) {
             return res.status(400).json({ message: 'Certificate data is required.' });
         }
-
         const dataHash = createStableHash(certificateData);
         const db = getDB();
-        
         const existing = await db.collection('certificates').findOne({ dataHash: dataHash });
-
         if (existing) {
             return res.status(409).json({ message: 'This certificate already exists in the database.' });
         }
-
         await db.collection('certificates').insertOne({ ...certificateData, dataHash });
         res.status(201).json({ message: 'Certificate record created successfully.' });
-
     } catch (error) {
         console.error('Error in /api/create-record:', error);
         res.status(500).json({ message: error.message });
@@ -87,14 +95,11 @@ app.post('/api/create-record', async (req, res) => {
 app.post('/api/verify-record', async (req, res) => {
     try {
         const { dataHash } = req.body;
-        
         if (!dataHash) {
             return res.status(400).json({ message: 'Data hash is required.' });
         }
-
         const db = getDB();
         const foundCertificate = await db.collection('certificates').findOne({ dataHash: dataHash });
-
         if (foundCertificate) {
             const { _id, dataHash, ...certDetails } = foundCertificate;
             res.status(200).json({ verified: true, certificate: certDetails });
