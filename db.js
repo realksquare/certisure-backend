@@ -20,7 +20,7 @@ const connectToDB = async () => {
 
         client = new MongoClient(uri);
         await client.connect();
-        db = client.db("certisure");
+        db = client.db("CertiSure");
         console.log('Connected successfully to MongoDB!');
         return db;
         
